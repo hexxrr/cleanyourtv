@@ -175,6 +175,7 @@
 
             <LinearLayout
                 android:id="@+id/leftBlock"
+                android:background="@drawable/header_clock_scrim"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
