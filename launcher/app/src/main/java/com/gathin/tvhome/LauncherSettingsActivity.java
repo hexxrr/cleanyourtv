@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.net.Uri;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -15,6 +16,8 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +30,7 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
     static final String EXTRA_REORDER = "com.gathin.tvhome.extra.REORDER_FROM_SETTINGS";
+    private static final int WALLPAPER_FILE_REQUEST = 73;
     private SharedPreferences choices;
     private final TextView[] columnChoices = new TextView[4];
     private final TextView[] rowChoices = new TextView[4];
@@ -187,22 +191,36 @@ public final class LauncherSettingsActivity extends Activity {
 
     private void showWallpaperPicker() {
         File dir = Config.dir(this);
-        List<File> images = new java.util.ArrayList<>(WallpaperRotation.images(
+        List<File> images = new ArrayList<>(WallpaperRotation.images(
                 dir == null ? null : new File(dir, "wallpapers")));
-        // A theme with a single wallpaper.jpg offers that picture too (Config maps the choice back to it).
         File single = dir == null ? null : new File(dir, Config.WALLPAPER_NAME);
         if (single != null && single.isFile()) images.add(0, single);
-        String[] labels = new String[images.size() + 1];
+
+        String[] labels = new String[images.size() + 2];
         for (int i = 0; i < images.size(); i++) labels[i] = images.get(i).getName();
-        labels[images.size()] = getString(R.string.wallpaper_none);
+        labels[images.size()] = getString(R.string.wallpaper_choose_photo);
+        labels[images.size() + 1] = getString(R.string.wallpaper_none);
+
         String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
-        int checked = "none".equals(current) ? images.size()
+        int checked = "none".equals(current) ? images.size() + 1
                 : indexOf(images, current);
+
         new AlertDialog.Builder(this)
                 .setTitle(R.string.wallpaper_label)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
                     if (which == images.size()) {
+                        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        pick.addCategory(Intent.CATEGORY_OPENABLE);
+                        pick.setType("image/*");
+                        try {
+                            startActivityForResult(pick, WALLPAPER_FILE_REQUEST);
+                        } catch (ActivityNotFoundException e) {
+                            Toast.makeText(this, "No file picker available", Toast.LENGTH_LONG).show();
+                        }
+                        return;
+                    }
+                    if (which == images.size() + 1) {
                         choices.edit().putString(Config.WALLPAPER_CHOICE_KEY, "none").apply();
                     } else {
                         choices.edit().putString(Config.WALLPAPER_CHOICE_KEY,
@@ -219,6 +237,44 @@ public final class LauncherSettingsActivity extends Activity {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != WALLPAPER_FILE_REQUEST || resultCode != RESULT_OK
+                || data == null || data.getData() == null) return;
+
+        Uri uri = data.getData();
+        File target = new File(getFilesDir(), Config.CUSTOM_WALLPAPER_FILE);
+        File temp = new File(getFilesDir(), Config.CUSTOM_WALLPAPER_FILE + ".tmp");
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             FileOutputStream out = new FileOutputStream(temp)) {
+            if (in == null) throw new java.io.IOException("Cannot open selected image");
+            byte[] buffer = new byte[8192];
+            int count;
+            long total = 0;
+            while ((count = in.read(buffer)) != -1) {
+                total += count;
+                if (total > 20L * 1024 * 1024) {
+                    throw new java.io.IOException("Image is larger than 20 MB");
+                }
+                out.write(buffer, 0, count);
+            }
+            out.getFD().sync();
+            if (total == 0 || !temp.renameTo(target)) {
+                throw new java.io.IOException("Could not save image");
+            }
+            choices.edit().putString(Config.WALLPAPER_CHOICE_KEY,
+                    Config.WALLPAPER_CUSTOM_CHOICE).apply();
+            changed();
+            Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
+            refresh();
+        } catch (Exception e) {
+            temp.delete();
+            Toast.makeText(this, "Could not use this image: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     /** Off, then every app with a TV entry point by name. Saved at once; it is read on the next boot. */

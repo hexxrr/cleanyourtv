@@ -42,6 +42,8 @@ final class Config {
     static final String SETTINGS_NAME = "launcher_settings";
     static final String ROWS_BELOW_DOCK_KEY = "rows_below_dock";
     static final String WALLPAPER_CHOICE_KEY = "wallpaper_choice";
+    static final String WALLPAPER_CUSTOM_CHOICE = "custom";
+    static final String CUSTOM_WALLPAPER_FILE = "custom_wallpaper.jpg";
     static final String DOCK_OPACITY_KEY = "dock_opacity";
     static final String CLOCK_FORMAT_KEY = "clock_format";
     /**
@@ -673,8 +675,15 @@ final class Config {
         // An on-TV wallpaper pick overrides the theme: a filename from the wallpapers/
         // collection, or "none". Unset means the theme decides (off by default).
         String wallpaperChoice = choices.getString(WALLPAPER_CHOICE_KEY, null);
-        List<File> chosen = WallpaperRotation.chosen(dir == null ? Collections.emptyList()
-                : WallpaperRotation.images(new File(dir, "wallpapers")), wallpaper, wallpaperChoice);
+        List<File> chosen;
+        if (WALLPAPER_CUSTOM_CHOICE.equals(wallpaperChoice)) {
+            File custom = new File(ctx.getFilesDir(), CUSTOM_WALLPAPER_FILE);
+            chosen = custom.isFile() && custom.length() > 0
+                    ? Collections.singletonList(custom) : null;
+        } else {
+            chosen = WallpaperRotation.chosen(dir == null ? Collections.emptyList()
+                    : WallpaperRotation.images(new File(dir, "wallpapers")), wallpaper, wallpaperChoice);
+        }
         if (chosen != null) {
             wallpapers.clear();
             wallpapers.addAll(chosen);
