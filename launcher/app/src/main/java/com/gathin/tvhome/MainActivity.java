@@ -78,6 +78,8 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -339,6 +341,60 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private TextView weatherTemperature;
+    private volatile boolean weatherRequestRunning;
+    private final Runnable weatherRefresh = new Runnable() {
+        @Override public void run() {
+            fetchWeather();
+            handler.postDelayed(this, 30 * MINUTE_MS);
+        }
+    };
+
+    private void fetchWeather() {
+        if (!resumed || weatherRequestRunning) return;
+        weatherRequestRunning = true;
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL("https://api.open-meteo.com/v1/forecast?latitude=28.80&longitude=79.02&current=temperature_2m&timezone=Asia%2FKolkata");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                connection.setRequestMethod("GET");
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(connection.getInputStream()))) {
+                    StringBuilder body = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) body.append(line);
+                    JSONObject current = new JSONObject(body.toString())
+                            .getJSONObject("current");
+                    double temperature = current.getDouble("temperature_2m");
+                    handler.post(() -> {
+                        if (weatherTemperature != null) {
+                            weatherTemperature.setText(String.format(
+                                    Locale.US, "%.0f°C", temperature));
+                        }
+                    });
+                }
+            } catch (Exception ignored) {
+                // Keep the last successful reading if the network is unavailable.
+            } finally {
+                if (connection != null) connection.disconnect();
+                weatherRequestRunning = false;
+            }
+        }, "HomeWeather").start();
+    }
+
+    private void startWeather() {
+        handler.removeCallbacks(weatherRefresh);
+        fetchWeather();
+        handler.postDelayed(weatherRefresh, 30 * MINUTE_MS);
+    }
+
+    private void stopWeather() {
+        handler.removeCallbacks(weatherRefresh);
+    }
+
     /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
     private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
         @Override
@@ -432,6 +488,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        weatherTemperature = findViewById(R.id.weatherTemperature);
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
@@ -1037,6 +1094,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        startWeather();
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -1250,6 +1308,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        stopWeather();
         // No UP reaches a paused Home, so a vendor-key hold it saw go down would still open its app later.
         // Only Home's own share is dropped: a key service that saw the same DOWN keeps its hold.
         RemoteKeys.release(this);

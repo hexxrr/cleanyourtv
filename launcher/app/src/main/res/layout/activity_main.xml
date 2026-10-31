@@ -386,6 +386,44 @@
                     android:drawableStart="@drawable/ic_settings"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/weatherWidget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/topButtons"
+                android:layout_alignParentEnd="true"
+                android:layout_marginTop="8dp"
+                android:orientation="vertical"
+                android:gravity="end"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:background="@drawable/weather_glass_bg"
+                android:focusable="false">
+
+                <TextView
+                    android:id="@+id/weatherTemperature"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="--°C"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="42sp"
+                    android:fontFamily="@string/font_light"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.04" />
+
+                <TextView
+                    android:id="@+id/weatherCity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="RAMPUR"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="12sp"
+                    android:fontFamily="@string/font_medium"
+                    android:letterSpacing="0.16" />
+            </LinearLayout>
         </RelativeLayout>
 
         <!-- The wrapper clips at the grid's edge; the grid itself must not clip so scaled tiles can overflow their cells. -->
