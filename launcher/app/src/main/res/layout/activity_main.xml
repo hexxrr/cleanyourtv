@@ -365,6 +365,13 @@
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
+                    android:id="@+id/btnRecent"
+                    style="@style/TopButtonIcon"
+                    android:contentDescription="@string/recent_apps"
+                    android:drawableStart="@drawable/ic_recent_apps"
+                    android:nextFocusDown="@+id/grid" />
+
+                <TextView
                     android:id="@+id/btnReorder"
                     style="@style/TopButtonIcon"
                     android:contentDescription="@string/reorder"

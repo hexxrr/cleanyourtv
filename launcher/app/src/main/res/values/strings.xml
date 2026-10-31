@@ -54,6 +54,9 @@
     <string name="rows_below_dock_label">Rows below dock</string>
     <string name="dock_opacity_label">Dock band opacity</string>
     <string name="wallpaper_label">Wallpaper</string>
+    <string name="recent_apps">Recent apps</string>
+    <string name="clear_all">Clear all</string>
+    <string name="no_recent_apps">No recent apps</string>
     <string name="wallpaper_state">Wallpaper: %1$s</string>
     <string name="wallpaper_none">None</string>
     <string name="wallpaper_applied">Wallpaper changed</string>

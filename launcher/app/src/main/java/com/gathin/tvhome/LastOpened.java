@@ -19,7 +19,33 @@ final class LastOpened {
 
     /** Notes that Home just opened this app. */
     static void record(Context ctx, String pkg) {
-        prefs(ctx).edit().putLong(pkg, System.currentTimeMillis()).apply();
+        if (pkg == null || pkg.isEmpty()) return;
+        SharedPreferences p = prefs(ctx);
+        java.util.ArrayList<String> ordered = new java.util.ArrayList<>();
+        ordered.add(pkg);
+        for (String old : recent(ctx)) {
+            if (!pkg.equals(old) && ordered.size() < MAX_RECENT) ordered.add(old);
+        }
+        p.edit().putLong(pkg, System.currentTimeMillis())
+                .putString(RECENT_KEY, android.text.TextUtils.join("|", ordered)).apply();
+    }
+
+    private static final String RECENT_KEY = "recent_packages";
+    private static final int MAX_RECENT = 10;
+
+    static java.util.List<String> recent(Context ctx) {
+        String saved = prefs(ctx).getString(RECENT_KEY, "");
+        java.util.ArrayList<String> result = new java.util.ArrayList<>();
+        if (saved == null || saved.isEmpty()) return result;
+        for (String pkg : saved.split("\\|")) {
+            if (!pkg.isEmpty() && !result.contains(pkg)) result.add(pkg);
+            if (result.size() >= MAX_RECENT) break;
+        }
+        return result;
+    }
+
+    static void clearRecent(Context ctx) {
+        prefs(ctx).edit().remove(RECENT_KEY).apply();
     }
 
     /** Milliseconds since the epoch, or 0 when Home never opened the app. */

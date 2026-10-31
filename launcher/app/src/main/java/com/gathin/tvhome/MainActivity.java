@@ -847,6 +847,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View btnWallpaper = findViewById(R.id.btnWallpaper);
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
+        View btnRecent = findViewById(R.id.btnRecent);
+        btnRecent.setOnClickListener(v -> showRecentApps(btnRecent));
         btnWallpaper.setOnClickListener(v -> {
             Intent intent = new Intent(this, LauncherSettingsActivity.class);
             intent.putExtra(LauncherSettingsActivity.EXTRA_WALLPAPER, true);
@@ -944,6 +946,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
         btnInputs.setOnKeyListener(pillKeys);
+        btnRecent.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
         btnWallpaper.setOnKeyListener(pillKeys);
         btnVpn.setOnKeyListener(pillKeys);
@@ -952,7 +955,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnLibraryTop.setOnKeyListener(pillKeys);
         for (View button : topAppButtons) button.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnWallpaper, btnVpn, btnReorder, btnLibraryTop, btnSettings));
+            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnWallpaper, btnRecent, btnVpn, btnReorder, btnLibraryTop, btnSettings));
             pills.addAll(topAppButtons);
             for (View button : pills) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
@@ -3577,6 +3580,92 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static void fold(View view, List<View> folded) {
         view.setVisibility(View.GONE);
         folded.add(view);
+    }
+
+    private void showRecentApps(View anchor) {
+        final int pad = (int) (16 * density);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xE638424F, 0xD9252D38});
+        bg.setCornerRadius(18 * density);
+        bg.setStroke(Math.max(1, (int) density), 0x55FFFFFF);
+        panel.setBackground(bg);
+        TextView title = new TextView(this);
+        title.setText(R.string.recent_apps);
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(18);
+        title.setPadding(pad / 2, 0, pad / 2, pad);
+        panel.addView(title);
+        LinearLayout rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(rows);
+        panel.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int)(300*density)));
+        TextView clear = new TextView(this);
+        clear.setText(R.string.clear_all);
+        clear.setTextColor(Color.WHITE);
+        clear.setTextSize(14);
+        clear.setGravity(Gravity.CENTER);
+        clear.setFocusable(true);
+        clear.setClickable(true);
+        clear.setPadding(pad, pad, pad, pad/2);
+        Runnable populate = () -> {
+            rows.removeAllViews();
+            List<String> packages = LastOpened.recent(this);
+            if (packages.isEmpty()) {
+                TextView empty = new TextView(this);
+                empty.setText(R.string.no_recent_apps);
+                empty.setTextColor(0xCCFFFFFF);
+                empty.setPadding(pad,pad,pad,pad);
+                rows.addView(empty);
+                return;
+            }
+            PackageManager pm = getPackageManager();
+            for (String pkg : packages) {
+                try {
+                    ApplicationInfo info = pm.getApplicationInfo(pkg, 0);
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setFocusable(true);
+                    row.setClickable(true);
+                    row.setPadding(pad/2,(int)(7*density),pad/2,(int)(7*density));
+                    ImageView appIcon = new ImageView(this);
+                    appIcon.setImageDrawable(pm.getApplicationIcon(info));
+                    row.addView(appIcon,new LinearLayout.LayoutParams((int)(36*density),(int)(36*density)));
+                    TextView label = new TextView(this);
+                    label.setText(pm.getApplicationLabel(info));
+                    label.setTextColor(Color.WHITE);
+                    label.setTextSize(15);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f);
+                    lp.leftMargin=(int)(12*density);
+                    row.addView(label,lp);
+                    GradientDrawable focused = new GradientDrawable();
+                    focused.setColor(0x332F80ED);
+                    focused.setCornerRadius(10*density);
+                    row.setOnFocusChangeListener((v,f)->v.setBackground(f?focused:null));
+                    row.setOnClickListener(v->{
+                        Intent launch=pm.getLaunchIntentForPackage(pkg);
+                        if(launch!=null){
+                            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                            try { startActivity(launch); }
+                            catch(Exception ex){ Toast.makeText(this,getString(R.string.cant_open,label.getText()),Toast.LENGTH_SHORT).show(); }
+                        }
+                        if(openPopup!=null) openPopup.dismiss();
+                    });
+                    rows.addView(row,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
+                } catch(PackageManager.NameNotFoundException ignored) {}
+            }
+        };
+        populate.run();
+        clear.setOnClickListener(v->{LastOpened.clearRecent(this);populate.run();clear.requestFocus();});
+        panel.addView(clear,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
+        PopupWindow popup=glassPopup(panel,(int)(340*density));
+        dropIn(popup,panel,anchor,Gravity.END);
+        if(rows.getChildCount()>0 && rows.getChildAt(0).isFocusable()) rows.getChildAt(0).requestFocus();
+        else clear.requestFocus();
     }
 
     private PopupWindow glassPopup(View panel, int width) {
