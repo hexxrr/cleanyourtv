@@ -30,6 +30,7 @@ public final class LauncherSettingsActivity extends Activity {
     }
 
     static final String EXTRA_REORDER = "com.gathin.tvhome.extra.REORDER_FROM_SETTINGS";
+    static final String EXTRA_WALLPAPER = "com.gathin.tvhome.extra.OPEN_WALLPAPER";
     private static final int WALLPAPER_FILE_REQUEST = 73;
     private SharedPreferences choices;
     private final TextView[] columnChoices = new TextView[4];
@@ -129,6 +130,10 @@ public final class LauncherSettingsActivity extends Activity {
         }
         wallpaperChoice = findViewById(R.id.wallpaperChoice);
         wallpaperChoice.setOnClickListener(v -> showWallpaperPicker());
+        if (getIntent().getBooleanExtra(EXTRA_WALLPAPER, false)) {
+            getIntent().removeExtra(EXTRA_WALLPAPER);
+            wallpaperChoice.post(this::showWallpaperPicker);
+        }
         animationsChoice = findViewById(R.id.animationsChoice);
         animationsChoice.setOnClickListener(v -> {
             animations = !animations;

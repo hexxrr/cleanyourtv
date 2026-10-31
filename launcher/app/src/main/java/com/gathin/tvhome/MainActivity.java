@@ -787,8 +787,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         btnInputs = findViewById(R.id.btnInputs);
         View btnSettings = findViewById(R.id.btnSettings);
+        View btnWallpaper = findViewById(R.id.btnWallpaper);
         btnInputs.setOnClickListener(v -> showInputs());
         btnWifi.setOnClickListener(v -> openNetworkPill());
+        btnWallpaper.setOnClickListener(v -> {
+            Intent intent = new Intent(this, LauncherSettingsActivity.class);
+            intent.putExtra(LauncherSettingsActivity.EXTRA_WALLPAPER, true);
+            startActivityForResult(intent, LAUNCHER_SETTINGS_REQUEST);
+        });
         btnVpn.setOnClickListener(v -> openVpnPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -882,13 +888,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         };
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
+        btnWallpaper.setOnKeyListener(pillKeys);
         btnVpn.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
         for (View button : topAppButtons) button.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnVpn, btnReorder, btnLibraryTop, btnSettings));
+            List<View> pills = new ArrayList<>(Arrays.asList(btnInputs, btnWifi, btnWallpaper, btnVpn, btnReorder, btnLibraryTop, btnSettings));
             pills.addAll(topAppButtons);
             for (View button : pills) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
